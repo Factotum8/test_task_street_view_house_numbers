@@ -3,18 +3,19 @@ import numpy as np
 import tensorflow as tf
 from PIL import Image
 from six.moves import cPickle as pickle
-# from six.moves import range
+import warnings
+warnings.simplefilter("ignore")
 
 
 def gaussian_filter_(kernel_shape, ax):
     x = np.zeros(kernel_shape, dtype = float)
     mid = np.floor(kernel_shape[0] / 2.)
-    
+
     for kernel_idx in range(0, kernel_shape[2]):
         for i in range(0, kernel_shape[0]):
             for j in range(0, kernel_shape[1]):
                 x[i, j, kernel_idx, 0] = gauss(i - mid, j - mid)
-    
+
     return tf.convert_to_tensor(x / np.sum(x), dtype=tf.float32)
 
 
@@ -22,21 +23,13 @@ def gaussian_filter(kernel_shape, ax):
     # The Gaussian filter of the desired size initialized to zero
     filter_ = np.zeros(kernel_shape, dtype = float)
     mid = np.floor(kernel_shape[0] / 2.)  # Middle of kernel of Gaussian filter
-    
+
     for kernel_idx in range(0, kernel_shape[2]):
         for i in range(0, kernel_shape[0]):  # go on width of Gaussian weighting window
             for j in range(0, kernel_shape[1]):  # go on height of Gaussian weighting window
                 filter_[i, j, kernel_idx, 0] = gauss(i - mid, j - mid)
-                # For process visualisation 
-#                 _ = [i.ravel() for i in filter_] # (32, 32, 1) to (32, 32)
-#                 ax[kernel_shape[0] * i + j].set_title(
-#                     f"mid: {mid} i: {i} j: {j} x: {i - mid} y: {j - mid}", loc='center'
-#                 )
-#                 ax[kernel_shape[0] * i + j].imshow([i.ravel() for i in filter_])
-    
-    filter_ = filter_ / np.sum(filter_)    
-#     ax[kernel_shape[0] * kernel_shape[1]].set_title(f"finish", loc='center')
-#     ax[kernel_shape[0] * kernel_shape[1]].imshow([i.ravel() for i in filter_])
+
+    filter_ = filter_ / np.sum(filter_)
     return tf.convert_to_tensor(filter_, dtype=tf.float32), filter_
 
 
@@ -53,14 +46,14 @@ def LecunLCN(X, image_shape, threshold=1e-4, radius=7, use_divisor=True):
     """
     # Get Gaussian filter
     filter_shape = (radius, radius, image_shape[3], 1)
-    # For process visualisation 
+    # For process visualisation
 #     plt.rcParams['figure.figsize'] = (45.0, 100.0)    
 #     f, ax = plt.subplots(nrows= radius * radius + 1, ncols=1)
 #     [i.axis('off') for i in ax]
     ax = None
-       
+
     filters, filters_asarray = gaussian_filter(filter_shape, ax)
-    
+
     X = tf.convert_to_tensor(X, dtype=tf.float32)
     # Compute the Guassian weighted average by means of convolution
     convout = tf.nn.conv2d(X, filters, [1,1,1,1], 'SAME')
@@ -94,30 +87,30 @@ def LecunLCN(X, image_shape, threshold=1e-4, radius=7, use_divisor=True):
     return new_X
 
 
-def init_model(graph):
-	image_size = 32
-	num_labels = 11 # 0-9, + blank 
-	num_channels = 1 # grayscale
+def init_model(graph, test_dataset, image_index):
+    image_size = 32
+    num_labels = 11  # 0-9, + blank
+    num_channels = 1  # grayscale
 
-	patch_size = 5
-	depth1 = 16
-	depth2 = 32
-	depth3 = 64
-	num_hidden1 = 64
+    patch_size = 5
+    depth1 = 16
+    depth2 = 32
+    depth3 = 64
+    num_hidden1 = 64
 
     # Input data.
     tf_test_dataset = tf.placeholder(tf.float32, shape=(1, 32, 32, 1))
   
     # Variables.
-    layer1_weights = tf.get_variable("W1", 
+    layer1_weights = tf.get_variable("W1",
                                        shape=[patch_size, patch_size, num_channels, depth1],
                                        initializer=tf.contrib.layers.xavier_initializer_conv2d())
     layer1_biases = tf.Variable(tf.constant(1.0, shape=[depth1]), name='B1')
-    layer2_weights = tf.get_variable("W2", 
+    layer2_weights = tf.get_variable("W2",
                                        shape=[patch_size, patch_size, depth1, depth2],
                                        initializer=tf.contrib.layers.xavier_initializer_conv2d())
     layer2_biases = tf.Variable(tf.constant(1.0, shape=[depth2]), name='B2')
-    layer3_weights = tf.get_variable("W3", 
+    layer3_weights = tf.get_variable("W3",
                                        shape=[patch_size, patch_size, depth2, num_hidden1],
                                        initializer=tf.contrib.layers.xavier_initializer_conv2d())
     layer3_biases = tf.Variable(tf.constant(1.0, shape=[num_hidden1]), name='B3')
@@ -125,13 +118,13 @@ def init_model(graph):
     s1_w = tf.get_variable("WS1", shape=[num_hidden1, num_labels],
                              initializer=tf.contrib.layers.xavier_initializer())
     s1_b = tf.Variable(tf.constant(1.0, shape=[num_labels]), name='BS1')
-    s2_w = tf.get_variable("WS2", shape=[num_hidden1, num_labels], 
+    s2_w = tf.get_variable("WS2", shape=[num_hidden1, num_labels],
                              initializer=tf.contrib.layers.xavier_initializer())
     s2_b = tf.Variable(tf.constant(1.0, shape=[num_labels]), name='BS2')
     s3_w = tf.get_variable("WS3", shape=[num_hidden1, num_labels],
                              initializer=tf.contrib.layers.xavier_initializer())
     s3_b = tf.Variable(tf.constant(1.0, shape=[num_labels]), name='BS3')
-    s4_w = tf.get_variable("WS4", shape=[num_hidden1, num_labels], 
+    s4_w = tf.get_variable("WS4", shape=[num_hidden1, num_labels],
                              initializer=tf.contrib.layers.xavier_initializer())
     s4_b = tf.Variable(tf.constant(1.0, shape=[num_labels]), name='BS4')
     s5_w = tf.get_variable("WS5", shape=[num_hidden1, num_labels],
@@ -154,13 +147,13 @@ def init_model(graph):
         hidden = tf.nn.dropout(hidden, keep_prob)
         shape = hidden.get_shape().as_list()
         reshape = tf.reshape(hidden, [shape[0], shape[1] * shape[2] * shape[3]])
-        
+
         logits1 = tf.matmul(reshape, s1_w) + s1_b
         logits2 = tf.matmul(reshape, s2_w) + s2_b
         logits3 = tf.matmul(reshape, s3_w) + s3_b
         logits4 = tf.matmul(reshape, s4_w) + s4_b
         logits5 = tf.matmul(reshape, s5_w) + s5_b
-        
+
         return [logits1, logits2, logits3, logits4, logits5]
   
     # Training computation.
@@ -168,48 +161,49 @@ def init_model(graph):
   
     predict = tf.stack([tf.nn.softmax(logits1), tf.nn.softmax(logits2),
                         tf.nn.softmax(logits3), tf.nn.softmax(logits4),
-                        tf.nn.softmax(logits5)])  
+                        tf.nn.softmax(logits5)])
   
     test_prediction = tf.transpose(tf.argmax(predict, 2))
-    saver = tf.train.Saver()
     input_image_array = np.expand_dims(test_dataset[image_index, :, :, :], axis=0)
 
-    return graph, test_prediction
+    return graph, test_prediction, input_image_array, tf_test_dataset
 
 
-def predict(graph, test_prediction, input_image_array):
-	
-	with tf.Session(graph=graph) as session:
-		saver.restore(session, "./model/CNN_multi2.ckpt")
-		print("Model restored.")
-		print('Initialized')
-		prediction_ = session.run(test_prediction, feed_dict={tf_test_dataset : input_image_array,})
-		number_house = "".join([str(digit) for digit in prediction_[0,:] if digit != 10])
-		return number_house
+def predict(graph, test_prediction, input_image_array, tf_test_dataset):
+
+    with tf.Session(graph=graph) as session:
+        saver = tf.train.Saver()
+        saver.restore(session, "./model/CNN_multi2.ckpt")
+        print("Model restored.")
+        print('Initialized')
+        prediction_ = session.run(test_prediction, feed_dict={tf_test_dataset: input_image_array,})
+        number_house = "".join([str(digit) for digit in prediction_[0, :] if digit != 10])
+        return number_house
 
 
 def main():
-	pickle_file = './model/SVHN_multi.pickle'
+    pickle_file = './model/SVHN_multi.pickle'
 
-	with open(pickle_file, 'rb') as f:
-		save = pickle.load(f)
-		test_dataset = save['test_dataset']
-		test_labels = save['test_labels']
-		del save  # hint to help gc free up memory
-		print('Test set', test_dataset.shape, test_labels.shape)
+    with open(pickle_file, 'rb') as f:
+        save = pickle.load(f)
+        test_dataset = save['test_dataset']
+        test_labels = save['test_labels']
+        del save  # hint to help gc free up memory
+        # print('Test set', test_dataset.shape, test_labels.shape)
 
-	filename = "1.png"
-	fullname = os.path.join('./data/test', filename)
-	im = Image.open(fullname)
-	house_num = ''
-	image_index, _ = filename.split(".")
-	image_index = int(image_index)
+    filename = "1.png"
+    fullname = os.path.join('./data/test', filename)
+    im = Image.open(fullname)
+    house_num = ''
+    image_index, _ = filename.split(".")
+    image_index = int(image_index)
 
-	graph = tf.Graph()
-	with graph.as_default():
-		graph, test_prediction = init_model(graph)
-		number_house = prediction(graph, test_prediction, input_image_array)
-	print("number_house: {}".format(number_house))
+    graph = tf.Graph()
+    with graph.as_default():
+        graph, test_prediction, input_image_array, tf_test_dataset = init_model(graph, test_dataset, image_index)
+        number_house = predict(graph, test_prediction, input_image_array, tf_test_dataset)
+    print("number_house: {}".format(number_house))
+
 
 if __name__ == '__main__':
-	main()
+    main()

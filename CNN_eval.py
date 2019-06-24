@@ -194,7 +194,7 @@ def main(filename):
     im = Image.open(fullname)
     house_num = ''
     image_index, _ = filename.split(".")
-    image_index = int(image_index)
+    image_index = int(image_index) - 1 
 
     graph = tf.Graph()
     with graph.as_default():

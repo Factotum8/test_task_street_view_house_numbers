@@ -1,10 +1,9 @@
 import os
+import argparse
 import numpy as np
 import tensorflow as tf
 from PIL import Image
 from six.moves import cPickle as pickle
-import warnings
-warnings.simplefilter("ignore")
 
 
 def gaussian_filter_(kernel_shape, ax):
@@ -181,7 +180,7 @@ def predict(graph, test_prediction, input_image_array, tf_test_dataset):
         return number_house
 
 
-def main():
+def main(filename):
     pickle_file = './model/SVHN_multi.pickle'
 
     with open(pickle_file, 'rb') as f:
@@ -191,7 +190,6 @@ def main():
         del save  # hint to help gc free up memory
         # print('Test set', test_dataset.shape, test_labels.shape)
 
-    filename = "1.png"
     fullname = os.path.join('./data/test', filename)
     im = Image.open(fullname)
     house_num = ''
@@ -206,4 +204,13 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument("-f", action='store', type=str,
+                            dest='FileName', help="Specify file name.")
+    args = arg_parser.parse_args()
+    if args.FileName:
+        file_name = args.FileName
+        main(file_name)
+    else:
+        print("Specify file name")
+

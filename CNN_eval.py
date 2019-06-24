@@ -200,7 +200,7 @@ def main(filename):
     with graph.as_default():
         graph, test_prediction, input_image_array, tf_test_dataset = init_model(graph, test_dataset, image_index)
         number_house = predict(graph, test_prediction, input_image_array, tf_test_dataset)
-    print("number_house: {}".format(number_house))
+    print("\nNUMBER HOUSE: {}".format(number_house))
 
 
 if __name__ == '__main__':
